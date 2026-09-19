@@ -105,9 +105,7 @@ function isRecentPending(maxAge = 60000) {
 // A source URL is an additional exact-match guard when the DOM exposes one.
 function matchesPendingDownload(downloadItem, transfer = pendingTransfer) {
   if (!transfer || !downloadItem || transfer.downloadId != null) return false;
-  if (transfer.processingPdf && transfer.forcedDownloadId != null) {
-    return downloadItem.id === transfer.forcedDownloadId;
-  }
+  if (transfer.processingPdf && transfer.forcedDownloadId != null && downloadItem.id === transfer.forcedDownloadId) return true;
   if (downloadItem.byExtensionId === chrome.runtime.id) return false;
   if (transfer.tabId == null || downloadItem.tabId !== transfer.tabId) return false;
   const candidate = downloadItem.finalUrl || downloadItem.url || "";
@@ -519,10 +517,11 @@ chrome.downloads.onDeterminingFilename.addListener((downloadItem, suggest) => {
     // Capture-only means inspect the URL, not download or delete any file.
     // Cancel only the exact matched BYS download; do not erase download history.
     suggest();
-    transfer.resolved = true;
-    chrome.downloads.cancel(downloadItem.id).catch((err) =>
-      setTransferError("Could not cancel captured BYS download: " + (err?.message || err))
-    );
+    chrome.downloads.cancel(downloadItem.id).then(() => {
+      if (pendingTransfer?.token === transfer.token) transfer.resolved = true;
+    }).catch((err) => {
+      if (pendingTransfer?.token === transfer.token) setTransferError("Could not cancel captured BYS download: " + (err?.message || err));
+    });
     return;
   }
 
