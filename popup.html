@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SUBÜ BYS Downloader</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <main class="app">
+    <header class="topbar">
+      <div class="brand">
+        <div class="logo-shell"><img src="icons/icon128.png" alt="SUBÜ" /></div>
+        <div>
+          <div class="brand-kicker">SUBÜ · BYS</div>
+          <h1>Downloader <span>2.0</span></h1>
+        </div>
+      </div>
+      <label class="power-switch" title="Turn extension on or off">
+        <input id="enabledToggle" type="checkbox" />
+        <span class="power-track"><span class="power-knob"></span></span>
+      </label>
+    </header>
+
+    <nav class="tabs" aria-label="Extension sections">
+      <button class="tab active" data-view="home" type="button">Home</button>
+      <button class="tab" data-view="files" type="button">Files</button>
+      <button class="tab" data-view="settings" type="button">Settings</button>
+    </nav>
+
+    <section id="view-home" class="view active">
+      <section class="course-card card">
+        <div class="card-topline">
+          <span id="pageBadge" class="badge neutral">Checking BYS…</span>
+          <span class="file-count"><b id="documentCount">—</b> files</span>
+        </div>
+        <div class="course-label">Current course</div>
+        <div id="courseName" class="course-name">—</div>
+        <div class="metric-row">
+          <div><b id="newCount">—</b><span>new</span></div>
+          <div><b id="savedCount">—</b><span>known</span></div>
+          <div><b id="directCount">—</b><span>direct links</span></div>
+        </div>
+      </section>
+
+      <section id="resumeCard" class="resume-card" hidden>
+        <div><strong>Previous session found</strong><span id="resumeText">Continue remaining files.</span></div>
+        <button id="resumeBtn" type="button">Resume</button>
+      </section>
+
+      <section class="drive-card card">
+        <div class="section-heading">
+          <div>
+            <span class="section-icon cloud">☁</span>
+            <div><strong>Google Drive</strong><small id="driveSubtitle">Checking connection…</small></div>
+          </div>
+          <span id="driveDot" class="connection-dot"></span>
+        </div>
+        <div id="driveAccount" class="drive-account" hidden></div>
+        <div id="driveFolderBox" class="folder-box" hidden>
+          <div><span>Save folder</span><strong id="driveFolderPath">My Drive</strong></div>
+          <button id="changeFolderBtn" type="button">Change</button>
+        </div>
+        <div class="drive-actions">
+          <button id="connectDriveBtn" class="soft-btn" type="button">Connect Drive</button>
+          <button id="disconnectDriveBtn" class="ghost-btn" type="button" hidden>Disconnect</button>
+          <button id="driveSetupBtn" class="ghost-btn" type="button" hidden>One-time setup</button>
+        </div>
+      </section>
+
+      <section class="main-actions">
+        <button id="downloadAllBtn" class="action-card primary" type="button" disabled>
+          <span class="action-icon">↓</span>
+          <span><strong>Download all</strong><small>Every document on this page</small></span>
+        </button>
+        <button id="newOnlyBtn" class="action-card accent" type="button" disabled>
+          <span class="action-icon">✦</span>
+          <span><strong>New only</strong><small id="newOnlyText">Only files not saved before</small></span>
+        </button>
+        <button id="chooseBtn" class="action-card" type="button" disabled>
+          <span class="action-icon">✓</span>
+          <span><strong>Choose files</strong><small>Select documents one by one</small></span>
+        </button>
+        <button id="exportBtn" class="action-card" type="button" disabled>
+          <span class="action-icon">↗</span>
+          <span><strong>Export list</strong><small>CSV with week, title & status</small></span>
+        </button>
+      </section>
+
+      <div id="homeHint" class="hint">Open a SUBÜ BYS course and its Dokümanlar tab.</div>
+    </section>
+
+    <section id="view-files" class="view">
+      <div class="files-toolbar">
+        <div class="search-wrap"><span>⌕</span><input id="fileSearch" type="search" placeholder="Search documents…" /></div>
+        <div class="quick-filters">
+          <button type="button" data-filter="all" class="active">All</button>
+          <button type="button" data-filter="new">New</button>
+          <button type="button" data-filter="saved">Saved</button>
+        </div>
+      </div>
+      <div class="selection-bar">
+        <button id="selectAllBtn" type="button">Select all</button>
+        <button id="clearSelectionBtn" type="button">Clear</button>
+        <span><b id="selectedCount">0</b> selected</span>
+      </div>
+      <div id="fileList" class="file-list"></div>
+      <div class="files-footer">
+        <button id="downloadSelectedBtn" class="wide-primary" type="button" disabled>Download selected</button>
+      </div>
+    </section>
+
+    <section id="view-settings" class="view">
+      <section class="settings-card card">
+        <div class="settings-title">File naming</div>
+        <label class="field-label" for="filenamePattern">Filename format</label>
+        <select id="filenamePattern">
+          <option value="week-title">Hafta 01 - Document title</option>
+          <option value="number-title">01 - Document title</option>
+          <option value="title">Document title only</option>
+          <option value="course-week-title">Course - Hafta 01 - Document</option>
+        </select>
+        <label class="setting-row"><span><b>Course folder on computer</b><small>Save under Downloads/SUBU/Course name</small></span><input id="localCourseFolder" type="checkbox" /></label>
+        <label class="setting-row"><span><b>Course folder in Drive</b><small>Create/find the course folder automatically</small></span><input id="driveCourseFolder" type="checkbox" /></label>
+      </section>
+
+      <section class="settings-card card">
+        <div class="settings-title">Reliability</div>
+        <label class="field-label" for="delayMs">Delay between files</label>
+        <select id="delayMs">
+          <option value="1000">1 second</option>
+          <option value="2000">2 seconds (recommended)</option>
+          <option value="3000">3 seconds</option>
+          <option value="5000">5 seconds</option>
+        </select>
+        <label class="field-label" for="retries">Automatic retries</label>
+        <select id="retries">
+          <option value="0">No retry</option>
+          <option value="1">1 retry</option>
+          <option value="2">2 retries</option>
+          <option value="3">3 retries</option>
+        </select>
+        <label class="setting-row"><span><b>Auto-skip after retries</b><small>Continue without waiting for you</small></span><input id="autoSkip" type="checkbox" /></label>
+        <label class="field-label" for="duplicatePolicy">Drive duplicates</label>
+        <select id="duplicatePolicy">
+          <option value="skip">Skip existing (recommended)</option>
+          <option value="replace">Replace existing</option>
+          <option value="keepboth">Keep both</option>
+        </select>
+      </section>
+
+      <section class="settings-card card">
+        <div class="settings-title">Save destination</div>
+        <label class="setting-row"><span><b>Ask every time</b><small>Computer, Drive, or both before each session</small></span><input id="askDestination" type="checkbox" /></label>
+        <label class="field-label" for="defaultDestination">Default when not asking</label>
+        <select id="defaultDestination">
+          <option value="computer">Computer</option>
+          <option value="drive">Google Drive</option>
+          <option value="both">Computer + Drive</option>
+        </select>
+      </section>
+
+      <button id="clearHistoryBtn" class="danger-outline" type="button">Clear download history</button>
+      <div id="settingsSaved" class="settings-saved">Settings save automatically.</div>
+    </section>
+
+    <footer class="footer"><span>Zero-lag mode · no page watcher</span><span>•</span><span>PDF · PPTX · Word</span></footer>
+  </main>
+
+  <div id="destinationSheet" class="sheet-backdrop" hidden>
+    <section class="sheet">
+      <div class="sheet-handle"></div>
+      <div class="sheet-head"><div><strong>Where should I save?</strong><small id="destinationSummary">Selected files</small></div><button class="sheet-close" type="button" data-close-sheet>×</button></div>
+      <div class="destination-grid">
+        <button type="button" class="destination-option active" data-destination="computer"><span>💻</span><b>Computer</b><small>Downloads folder</small></button>
+        <button type="button" class="destination-option" data-destination="drive"><span>☁</span><b>Drive</b><small>Upload directly</small></button>
+        <button type="button" class="destination-option" data-destination="both"><span>↻</span><b>Both</b><small>Computer + Drive</small></button>
+      </div>
+      <div id="driveRequirement" class="drive-requirement" hidden></div>
+      <label class="remember-row"><input id="rememberDestination" type="checkbox" /><span>Remember this choice and don’t ask next time</span></label>
+      <button id="startTransferBtn" class="wide-primary" type="button">Start</button>
+    </section>
+  </div>
+
+  <div id="folderSheet" class="sheet-backdrop" hidden>
+    <section class="sheet folder-sheet">
+      <div class="sheet-handle"></div>
+      <div class="sheet-head"><div><strong>Choose Drive folder</strong><small id="folderBreadcrumb">My Drive</small></div><button class="sheet-close" type="button" data-close-folder>×</button></div>
+      <div class="folder-tools"><button id="folderUpBtn" type="button">← Up</button><button id="newFolderBtn" type="button">+ New folder</button></div>
+      <div id="folderList" class="folder-list"><div class="folder-loading">Loading…</div></div>
+      <button id="selectCurrentFolderBtn" class="wide-primary" type="button">Use this folder</button>
+    </section>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

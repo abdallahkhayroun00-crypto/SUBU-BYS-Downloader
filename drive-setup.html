@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Google Drive Setup · SUBÜ BYS Downloader</title>
+  <link rel="stylesheet" href="drive-setup.css" />
+</head>
+<body>
+  <main class="setup-app">
+    <header class="hero">
+      <img src="icons/icon128.png" alt="SUBÜ" />
+      <div><div class="kicker">SUBÜ BYS DOWNLOADER 2.0.1</div><h1>Google Drive · ready to connect</h1><p>OAuth is already configured in this build. Open the extension popup and click “Connect Drive” once to authorize your Google account.</p></div>
+    </header>
+
+    <section class="notice"><b>OAuth configured ✓</b><span>This build already contains the Google OAuth Client ID for this exact Chrome extension ID. No manual Client ID setup is needed anymore.</span></section>
+
+    <section class="card">
+      <div class="step"><span>1</span><div><b>Reload the extension</b><p>Open <code>chrome://extensions</code> and click Reload on SUBÜ BYS Downloader after installing this build.</p></div></div>
+      <div class="step"><span>2</span><div><b>Connect Google Drive once</b><p>Click the SUBÜ extension icon → <strong>Connect Drive</strong>. Google will ask you to approve Drive access.</p></div></div>
+      <div class="step"><span>3</span><div><b>Choose your folder</b><p>After connecting, choose the Drive folder where SUBÜ course files should be uploaded.</p></div></div>
+      <div class="step"><span>4</span><div><b>Done</b><p>Chrome normally keeps the authorization. You can disconnect Google Drive any time from the popup.</p></div></div>
+    </section>
+
+    <section class="card compact">
+      <div class="status-line"><span>OAuth configuration</span><b id="oauthStatus">Checking…</b></div>
+      <div class="status-line"><span>Extension ID</span><b id="shortId">—</b></div>
+      <div class="status-line"><span>Drive permission</span><b>Drive access</b></div>
+    </section>
+
+    <section class="privacy"><b>Privacy</b><p>The extension sends files only between the SUBÜ BYS page, your computer, and the Google Drive account you authorize. It does not need your Google password. You can disconnect Drive from the popup at any time.</p></section>
+  </main>
+  <script src="drive-setup.js"></script>
+</body>
+</html>

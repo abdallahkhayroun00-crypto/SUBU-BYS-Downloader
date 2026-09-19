@@ -1,0 +1,60 @@
+{
+  "manifest_version": 3,
+  "name": "SUBÜ BYS Downloader",
+  "version": "2.0.1",
+  "description": "Fast SUBÜ BYS course-file downloader with smart filenames, file selection, resume, history, Google Drive upload, duplicate handling, and zero-lag OFF mode.",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvQwyRTjThhAyoiQ470zBIcGJCkom5owmN9BrjVGbSYnTURcrOW8o4CCCPYiOJXNpmqwMpgUvHBZAsFDmjSHO8Lfn9HFY1XapqFW6RpA4S2Kgvp0AdOyH8ark0iDehLujo0gjyk3ySxQkpulsD+1gLIpC+iCsfFweuutfNKX9c0P6Nuceid5VoDyyPnj1Q6/qN3+THpmFHqDE8o7yf74IiPPhGv8TnntXj2TJmyhSpsWkVsR5ALKo+lqGSv1FSvAE4nlaTt3VJsRqXJiQwOs41tAq1UDjkFkJfy50EoQoTBY4+fbWaiZIDExhENPqoBszD6FxDJHp9ukHwxkL/ANT0wIDAQAB",
+  "permissions": [
+    "downloads",
+    "storage",
+    "tabs",
+    "activeTab",
+    "identity",
+    "identity.email",
+    "notifications"
+  ],
+  "host_permissions": [
+    "https://ogrenci.bys.subu.edu.tr/*",
+    "https://www.googleapis.com/*"
+  ],
+  "oauth2": {
+    "client_id": "86164904652-urldpqfuu003jhs5b7epoeb48h9s9a57.apps.googleusercontent.com",
+    "scopes": [
+      "https://www.googleapis.com/auth/drive"
+    ]
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://ogrenci.bys.subu.edu.tr/*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "css": [
+        "styles.css"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_title": "SUBÜ BYS Downloader",
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "options_page": "drive-setup.html"
+}
