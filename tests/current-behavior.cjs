@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Regression characterization tests for CURRENT v2.0.1 (intentionally assert known buggy behavior).
+// Group 02 regression tests for scoped download interception and completion.
 // Run: node tests/current-behavior.cjs
 // These are mocks, not live Chrome/SUBÜ/Drive integration tests.
 const vm = require('node:vm');
@@ -20,25 +20,43 @@ async function main() {
  vm.runInNewContext(fs.readFileSync(path.join(__dirname,'..','background.js'),'utf8'),context,{filename:'background.js'});
  await new Promise(resolve=>setImmediate(resolve));
  async function msg(message){return await new Promise((resolve,reject)=>{events.message(message,{tab:{id:9}},resolve);setTimeout(()=>reject(Error('Message timed out')),4000);});}
- const armed=await msg({type:'ARM_TRANSFER',baseName:'Hafta 02 - Lecture',folderPath:'SUBU/Course',captureOnly:false});
+ const armed=await msg({type:'ARM_TRANSFER',baseName:'Hafta 02 - Lecture',folderPath:'SUBU/Course',captureOnly:false,expectedUrl:'https://ogrenci.bys.subu.edu.tr/files/lecture.pdf'});
  assert.equal(armed.ok,true);
- let filename;
- events.determining({id:77,url:'https://unrelated.example/holiday.pdf',filename:'holiday.pdf',byExtensionId:'other'},suggest=>{filename=suggest.filename;});
+ let unrelatedSuggestion;
+ events.determining({id:77,tabId:9,url:'https://unrelated.example/holiday.pdf',filename:'holiday.pdf',byExtensionId:'other'},suggest=>{unrelatedSuggestion=suggest;});
  let state=await msg({type:'GET_TRANSFER_STATUS',token:armed.token});
- assert.equal(filename,'SUBU/Course/Hafta 02 - Lecture.pdf');
- assert.equal(state.resolved,true);
- assert.equal(state.downloadId,77);
- console.log('CURRENT BUG REPRODUCED: unrelated download intercepted and transfer resolved at filename determination.');
- events.downloadChanged({id:77,state:{current:'interrupted'},error:{current:'NETWORK_FAILED'}});
+ assert.equal(unrelatedSuggestion,undefined);
+ assert.equal(state.resolved,false);
+ console.log('PASS: unrelated origin download untouched');
+ events.determining({id:78,tabId:999,url:'https://ogrenci.bys.subu.edu.tr/files/lecture.pdf',filename:'lecture.pdf'},()=>{});
  state=await msg({type:'GET_TRANSFER_STATUS',token:armed.token});
- assert.equal(state.resolved,true);
+ assert.equal(state.resolved,false);
+ console.log('PASS: other-tab download untouched');
+ let filename;
+ events.determining({id:79,tabId:9,url:'https://ogrenci.bys.subu.edu.tr/files/lecture.pdf',filename:'lecture.pdf'},suggest=>{filename=suggest.filename;});
+ state=await msg({type:'GET_TRANSFER_STATUS',token:armed.token});
+ assert.equal(filename,'SUBU/Course/Hafta 02 - Lecture.pdf');
+ assert.equal(state.resolved,false);
+ assert.equal(state.downloadId,79);
+ console.log('PASS: filename determination is not completion');
+ events.downloadChanged({id:79,state:{current:'interrupted'},error:{current:'NETWORK_FAILED'}});
+ state=await msg({type:'GET_TRANSFER_STATUS',token:armed.token});
+ assert.equal(state.resolved,false);
  assert.match(state.error,/NETWORK_FAILED/);
- console.log('CURRENT BUG REPRODUCED: interrupted download remains resolved.');
- const armed2=await msg({type:'ARM_TRANSFER',baseName:'Capture',captureOnly:true});
- events.determining({id:78,url:'https://unrelated.example/any.zip',filename:'any.zip',byExtensionId:'other'},()=>{});
- state=await msg({type:'GET_TRANSFER_STATUS',token:armed2.token});
- assert.equal(state.method,'capture');
- console.log('CURRENT BUG REPRODUCED: unrelated download claimed in capture-only mode.');
- console.log('PASS: 3/3 baseline characterization cases (documenting bugs, not validating correct behavior).');
+ console.log('PASS: interrupted transfer remains incomplete');
+ await msg({type:'CLEAR_TRANSFER',token:armed.token});
+ const second=await msg({type:'ARM_TRANSFER',baseName:'Lecture 2',captureOnly:false});
+ events.determining({id:80,tabId:9,url:'https://ogrenci.bys.subu.edu.tr/files/lecture2.pdf',filename:'lecture2.pdf'},()=>{});
+ state=await msg({type:'GET_TRANSFER_STATUS',token:second.token});
+ assert.equal(state.resolved,false);
+ events.downloadChanged({id:80,state:{current:'complete'}});
+ state=await msg({type:'GET_TRANSFER_STATUS',token:second.token});
+ assert.equal(state.resolved,true);
+ console.log('PASS: matching download resolves only after complete');
+ const busy=await msg({type:'ARM_TRANSFER',baseName:'Other'});
+ assert.equal(busy.ok,true); // completed transfer can be replaced
+ console.log('PASS: completed transfer does not block next');
+ console.log('PASS: 6/6 mocked regression checks');
+
 }
 main().catch(err=>{console.error(err);process.exitCode=1;});
