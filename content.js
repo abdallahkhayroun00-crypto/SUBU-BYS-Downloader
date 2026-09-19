@@ -251,6 +251,7 @@
       last = status;
       if (status.resolved) return status;
       if (status.error) return status;
+      if (status.found === false) return { resolved: false, error: "Transfer state was lost; retry safely." };
       await sleep(300);
     }
     return { ...last, resolved: false, error: last.error || "Timed out while waiting for the browser download." };
@@ -261,7 +262,8 @@
       type: "ARM_TRANSFER",
       baseName,
       captureOnly,
-      folderPath: localFolderPath
+      folderPath: localFolderPath,
+      expectedUrl: item.sourceUrl || null
     });
     if (!armed.ok || !armed.token) throw new Error(armed.error || "Could not prepare the file transfer.");
 
