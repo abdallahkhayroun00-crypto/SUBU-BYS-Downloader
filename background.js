@@ -101,6 +101,27 @@ function isRecentPending(maxAge = 60000) {
   return !!pendingTransfer && Date.now() - pendingTransfer.createdAt < maxAge;
 }
 
+// Only touch downloads attributable to the armed BYS tab and trusted BYS origin.
+// A source URL is an additional exact-match guard when the DOM exposes one.
+function matchesPendingDownload(downloadItem, transfer = pendingTransfer) {
+  if (!transfer || !downloadItem || transfer.downloadId != null) return false;
+  if (transfer.processingPdf && transfer.forcedDownloadId != null) {
+    return downloadItem.id === transfer.forcedDownloadId;
+  }
+  if (downloadItem.byExtensionId === chrome.runtime.id) return false;
+  if (transfer.tabId == null || downloadItem.tabId !== transfer.tabId) return false;
+  const candidate = downloadItem.finalUrl || downloadItem.url || "";
+  if (!/^https:\/\/ogrenci\.bys\.subu\.edu\.tr(?:\/|$)/i.test(candidate)) return false;
+  if (transfer.expectedUrl) {
+    try {
+      const expected = new URL(transfer.expectedUrl);
+      const actual = new URL(candidate);
+      if (expected.origin !== actual.origin || expected.pathname !== actual.pathname || expected.search !== actual.search) return false;
+    } catch (_) { return false; }
+  }
+  return true;
+}
+
 function decodeMaybe(value) {
   let out = String(value || "");
   for (let i = 0; i < 3; i++) {
@@ -480,45 +501,48 @@ async function handlePdfViewer(tabId, viewerUrl) {
 }
 
 chrome.downloads.onDeterminingFilename.addListener((downloadItem, suggest) => {
-  if (!extensionEnabled || !isRecentPending() || pendingTransfer.resolved) {
+  if (!extensionEnabled || !isRecentPending() || pendingTransfer.resolved || !matchesPendingDownload(downloadItem)) {
     suggest();
     return;
   }
 
-  // Ignore unrelated downloads started by this extension itself (for example CSV export).
-  // The exception is a PDF viewer conversion intentionally started by the pending transfer.
-  if (downloadItem.byExtensionId === chrome.runtime.id && !pendingTransfer.processingPdf) {
+  const transfer = pendingTransfer;
+  const ext = getExtensionFromDownload(downloadItem) || (transfer.processingPdf ? ".pdf" : "");
+  const filename = sanitizeSegment(transfer.baseName, "document") + ext;
+  const sourceUrl = downloadItem.finalUrl || downloadItem.url || transfer.sourceUrl || null;
+  transfer.downloadId = downloadItem.id;
+  transfer.filename = filename;
+  transfer.sourceUrl = sourceUrl;
+  transfer.method = transfer.captureOnly ? "capture" : (transfer.processingPdf ? "pdf-viewer" : "computer");
+
+  if (transfer.captureOnly) {
+    // Capture-only means inspect the URL, not download or delete any file.
+    // Cancel only the exact matched BYS download; do not erase download history.
     suggest();
+    transfer.resolved = true;
+    chrome.downloads.cancel(downloadItem.id).catch((err) =>
+      setTransferError("Could not cancel captured BYS download: " + (err?.message || err))
+    );
     return;
   }
 
-  const ext = getExtensionFromDownload(downloadItem) || (pendingTransfer.processingPdf ? ".pdf" : "");
-  const base = sanitizeSegment(pendingTransfer.baseName, "document");
-  const filename = base + ext;
-  const sourceUrl = downloadItem.finalUrl || downloadItem.url || pendingTransfer.sourceUrl || null;
-
-  if (pendingTransfer.captureOnly) {
-    const tempName = `SUBU-BYS-Capture/${filename}`;
-    suggest({ filename: tempName, conflictAction: "uniquify" });
-    markTransferResolved({ filename, method: "capture", downloadId: downloadItem.id, sourceUrl });
-    setTimeout(async () => {
-      try { await chrome.downloads.cancel(downloadItem.id); } catch (_) {}
-      try { await chrome.downloads.erase({ id: downloadItem.id }); } catch (_) {}
-    }, 10);
-    return;
-  }
-
-  const folder = sanitizePath(pendingTransfer.folderPath || "");
-  const full = folder ? `${folder}/${filename}` : filename;
-  suggest({ filename: full, conflictAction: "uniquify" });
-  markTransferResolved({ filename, method: pendingTransfer.processingPdf ? "pdf-viewer" : "computer", downloadId: downloadItem.id, sourceUrl });
+  const folder = sanitizePath(transfer.folderPath || "");
+  suggest({ filename: folder ? `${folder}/${filename}` : filename, conflictAction: "uniquify" });
+  // Filename selection only starts a download; completion arrives via onChanged.
 });
 
 chrome.downloads.onChanged.addListener((delta) => {
-  if (!pendingTransfer) return;
-  const relevantId = pendingTransfer.downloadId ?? pendingTransfer.forcedDownloadId;
-  if (relevantId == null || delta.id !== relevantId) return;
-  if (delta.error?.current) setTransferError(`Chrome download error: ${delta.error.current}`);
+  const transfer = pendingTransfer;
+  if (!transfer || transfer.downloadId == null || delta.id !== transfer.downloadId) return;
+  if (delta.error?.current || delta.state?.current === "interrupted") {
+    setTransferError(`Chrome download error: ${delta.error?.current || "interrupted"}`);
+    transfer.resolved = false;
+    return;
+  }
+  if (delta.state?.current === "complete" && !transfer.captureOnly) {
+    transfer.resolved = true;
+    transfer.error = null;
+  }
 });
 
 chrome.tabs.onCreated.addListener((tab) => {
@@ -539,11 +563,13 @@ async function handleMessage(message, sender) {
   switch (message?.type) {
     case "ARM_TRANSFER": {
       if (!extensionEnabled) return { ok: false, error: "Extension is turned OFF." };
+      if (pendingTransfer && isRecentPending() && !pendingTransfer.resolved && !pendingTransfer.error) return { ok: false, error: "Another transfer is already active. Retry after it finishes." };
       const token = crypto.randomUUID();
       pendingTransfer = {
         token,
         baseName: sanitizeSegment(message.baseName, "document"),
         folderPath: message.folderPath || "",
+        expectedUrl: message.expectedUrl || null,
         captureOnly: !!message.captureOnly,
         tabId: sender.tab?.id ?? null,
         createdAt: Date.now(),
