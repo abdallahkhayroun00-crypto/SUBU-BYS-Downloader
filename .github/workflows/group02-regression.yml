@@ -1,0 +1,26 @@
+name: Group 02 regression checks
+on:
+  push:
+    branches:
+      - fix/group-02-download-integrity
+  pull_request:
+    branches:
+      - main
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: JavaScript syntax
+        run: |
+          node --check background.js
+          node --check content.js
+          node --check popup.js
+          node --check drive-setup.js
+      - name: Structural smoke checks
+        run: node tests/baseline-smoke.cjs
+      - name: Mocked transfer regression checks
+        run: node tests/current-behavior.cjs
